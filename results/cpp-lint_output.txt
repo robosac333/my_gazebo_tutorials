@@ -1,0 +1,4 @@
+sachin33sj@sachin:~/gazebo_ws$ cpplint --filter=-build/c++11,+build/c++17,-build/namespaces,-build/include_order $( find . -name *.cpp | grep -vE -e "^./build/" )
+Done processing ./src/my_gazebo_tutorials/walker/src/main.cpp
+Done processing ./src/my_gazebo_tutorials/walker/src/walker_bot.cpp
+sachin33sj@sachin:~/gazebo_ws$ 

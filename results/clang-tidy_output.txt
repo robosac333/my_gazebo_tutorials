@@ -1,0 +1,2 @@
+sachin33sj@sachin:~/gazebo_ws$ clang-tidy -p build $(find . -name *.cpp | grep -v "/build/")
+sachin33sj@sachin:~/gazebo_ws$ 
