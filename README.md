@@ -67,7 +67,7 @@ cpplint --filter=-build/c++11,+build/c++17,-build/namespaces,-build/include_orde
 ## Clang-tidy
 To check if the code is in proper Clang-format go inside the workspace and run the following command
 ```sh
-clang-tidy -p ./ $( find . -name *.cpp | grep -v "/build/" )
+clang-tidy -p build $( find . -name *.cpp | grep -v "/build/" )
 ```
 
 ## Dependencies

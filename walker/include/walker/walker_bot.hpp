@@ -2,7 +2,7 @@
  * @file walker_bot.hpp
  * @brief Header file for the Walker robot implementation using state pattern.
  * @copyright 2024 Sachin Jadhav
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,7 +29,7 @@ class WalkerState;
 /**
  * @class Walker
  * @brief Main robot control class implementing obstacle avoidance behavior.
- * 
+ *
  * The Walker class manages the robot's movement and state transitions based on
  * laser scan data. It implements a state pattern to handle different behaviors
  * for forward movement and rotation.
@@ -38,7 +38,7 @@ class Walker : public rclcpp::Node {
  public:
   /**
    * @brief Constructor initializing the Walker node.
-   * 
+   *
    * Sets up publishers, subscribers, and initializes the robot in ForwardState.
    */
   Walker();
@@ -46,7 +46,7 @@ class Walker : public rclcpp::Node {
   /**
    * @brief Changes the current state of the Walker.
    * @param new_state Pointer to the new state to transition to.
-   * 
+   *
    * Deletes the current state and transitions to the provided new state.
    */
   void change_state(WalkerState* new_state);
@@ -66,7 +66,8 @@ class Walker : public rclcpp::Node {
   bool is_path_clear(const sensor_msgs::msg::LaserScan::SharedPtr scan) const;
 
   /**
-   * @brief Toggles the rotation direction between clockwise and counter-clockwise.
+   * @brief Toggles the rotation direction between clockwise and
+   * counter-clockwise.
    */
   void toggle_rotation_direction();
 
@@ -94,16 +95,20 @@ class Walker : public rclcpp::Node {
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr scan);
 
   WalkerState* current_state_;  ///< Pointer to current state object
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;  ///< Velocity command publisher
-  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscriber_;  ///< Laser scan subscriber
-  double rotation_direction_;  ///< Current rotation direction (1.0 for CCW, -1.0 for CW)
-  const double SAFE_DISTANCE = 0.8;  ///< Minimum safe distance from obstacles in meters
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr
+      vel_publisher_;  ///< Velocity command publisher
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr
+      scan_subscriber_;        ///< Laser scan subscriber
+  double rotation_direction_;  ///< Current rotation direction (1.0 for CCW,
+                               ///< -1.0 for CW)
+  const double SAFE_DISTANCE =
+      0.8;  ///< Minimum safe distance from obstacles in meters
 };
 
 /**
  * @class WalkerState
  * @brief Abstract base class for Walker states.
- * 
+ *
  * Defines the interface for different states of the Walker robot.
  */
 class WalkerState {
@@ -119,13 +124,13 @@ class WalkerState {
    * @param scan Shared pointer to laser scan data.
    */
   virtual void handle(Walker* walker,
-                     const sensor_msgs::msg::LaserScan::SharedPtr scan) = 0;
+                      const sensor_msgs::msg::LaserScan::SharedPtr scan) = 0;
 };
 
 /**
  * @class ForwardState
  * @brief State implementing forward movement behavior.
- * 
+ *
  * Handles robot behavior when moving forward, including obstacle detection
  * and state transitions.
  */
@@ -137,13 +142,13 @@ class ForwardState : public WalkerState {
    * @param scan Shared pointer to laser scan data.
    */
   void handle(Walker* walker,
-             const sensor_msgs::msg::LaserScan::SharedPtr scan) override;
+              const sensor_msgs::msg::LaserScan::SharedPtr scan) override;
 };
 
 /**
  * @class RotationState
  * @brief State implementing rotation behavior.
- * 
+ *
  * Manages robot behavior during rotation, including timed rotations
  * and path checking.
  */
@@ -160,11 +165,12 @@ class RotationState : public WalkerState {
    * @param scan Shared pointer to laser scan data.
    */
   void handle(Walker* walker,
-             const sensor_msgs::msg::LaserScan::SharedPtr scan) override;
+              const sensor_msgs::msg::LaserScan::SharedPtr scan) override;
 
  private:
   bool initial_rotation_;  ///< Flag tracking initial rotation period
-  rclcpp::TimerBase::SharedPtr rotation_timer_;  ///< Timer for managing rotation duration
+  rclcpp::TimerBase::SharedPtr
+      rotation_timer_;  ///< Timer for managing rotation duration
 };
 
 #endif  // WALKER_WALKER_BOT_HPP
