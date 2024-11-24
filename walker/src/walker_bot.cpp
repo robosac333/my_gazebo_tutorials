@@ -1,26 +1,5 @@
-/*
- * Copyright 2024 Sachin Jadhav.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "walker/walker_bot.hpp"
 
-/**
- * @brief Constructor for the Walker class.
- * Initializes the ROS 2 node, sets up publishers and subscribers,
- * and sets the initial state to ForwardState.
- */
 Walker::Walker() : Node("walker"), rotation_direction_(1.0) {
   vel_publisher_ =
       this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
@@ -36,33 +15,15 @@ Walker::Walker() : Node("walker"), rotation_direction_(1.0) {
   current_state_ = new ForwardState();
 }
 
-/**
- * @brief Callback function for LaserScan messages.
- * Delegates processing of the scan to the current state.
- *
- * @param scan Shared pointer to the LaserScan message.
- */
 void Walker::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr scan) {
   current_state_->handle(this, scan);
 }
 
-/**
- * @brief Changes the state of the Walker.
- * Deletes the current state and transitions to the new state.
- *
- * @param new_state Pointer to the new state.
- */
 void Walker::change_state(WalkerState* new_state) {
   delete current_state_;
   current_state_ = new_state;
 }
 
-/**
- * @brief Publishes velocity commands to the robot.
- *
- * @param linear Linear velocity (m/s).
- * @param angular Angular velocity (rad/s).
- */
 void Walker::publish_velocity(double linear, double angular) {
   auto msg = geometry_msgs::msg::Twist();
   msg.linear.x = linear;
@@ -70,67 +31,86 @@ void Walker::publish_velocity(double linear, double angular) {
   vel_publisher_->publish(msg);
 }
 
-/**
- * @brief Checks if the path in front of the robot is clear.
- *
- * @param scan Shared pointer to the LaserScan message.
- * @return true if the path is clear, false otherwise.
- */
 bool Walker::is_path_clear(
     const sensor_msgs::msg::LaserScan::SharedPtr scan) const {
-  const int front_start = 0;
-  const int front_end = 15;
-  const int back_start = 345;
-  const int back_end = 359;
+  const int left_start = 0;        // Starting from front center
+  const int left_end = 17;         // 45 degrees to the left
+  const int right_start = 343;     // 45 degrees to the right
+  const int right_end = 359;       // Back to front center
 
-  for (int i = front_start; i <= front_end; ++i) {
-    if (scan->ranges[i] < SAFE_DISTANCE) return false;
+  // Check left side of front arc (0 to 45 degrees)
+  for (int i = left_start; i <= left_end; ++i) {
+    if (scan->ranges[i] < SAFE_DISTANCE) {
+      RCLCPP_INFO(rclcpp::get_logger("Walker"), 
+                  "Obstacle detected in left arc at angle %d", i);
+      return false;
+    }
   }
 
-  for (int i = back_start; i <= back_end; ++i) {
-    if (scan->ranges[i] < SAFE_DISTANCE) return false;
+  // Check right side of front arc (315 to 359 degrees)
+  for (int i = right_start; i <= right_end; ++i) {
+    if (scan->ranges[i] < SAFE_DISTANCE) {
+      RCLCPP_INFO(rclcpp::get_logger("Walker"), 
+                  "Obstacle detected in right arc at angle %d", i);
+      return false;
+    }
   }
-
   return true;
 }
 
-/**
- * @brief Toggles the rotation direction between clockwise and
- * counter-clockwise.
- */
-void Walker::toggle_rotation_direction() { rotation_direction_ *= -1.0; }
+void Walker::toggle_rotation_direction() { 
+  rotation_direction_ *= -1.0; 
+}
 
-/**
- * @brief Handles behavior in the RotationState.
- * If the path is clear, transitions to ForwardState. Otherwise, continues
- * rotating.
- *
- * @param walker Pointer to the Walker instance.
- * @param scan Shared pointer to the LaserScan message.
- */
+rclcpp::TimerBase::SharedPtr Walker::create_timer(
+    const std::chrono::duration<double>& period,
+    std::function<void()> callback) {
+  return this->create_wall_timer(period, callback);
+}
+
 void RotationState::handle(Walker* walker,
-                           const sensor_msgs::msg::LaserScan::SharedPtr scan) {
-  if (walker->is_path_clear(scan)) {
-    walker->change_state(new ForwardState());
-  } else {
+                         const sensor_msgs::msg::LaserScan::SharedPtr scan) {
+  // If this is the initial rotation period
+  if (initial_rotation_) {
+    // Start rotating
     walker->publish_velocity(0.0, 0.3 * walker->get_rotation_direction());
+    
+    // If timer hasn't been created yet, create it
+    if (!rotation_timer_) {
+      rotation_timer_ = walker->create_timer(
+          std::chrono::seconds(10),
+          [this]() {
+            // After 5 seconds, mark initial rotation as complete
+            initial_rotation_ = false;
+            rotation_timer_ = nullptr;
+          });
+      
+      RCLCPP_INFO(walker->get_logger(), 
+                  "Starting initial 10-second rotation period");
+    }
+  }
+  // After initial rotation period, check path and continue rotating if needed
+  else {
+    if (walker->is_path_clear(scan)) {
+      RCLCPP_INFO(walker->get_logger(), "Path is clear, moving forward");
+      walker->change_state(new ForwardState());
+    } else {
+      // Continue rotating in the same direction
+      walker->publish_velocity(0.0, 0.3 * walker->get_rotation_direction());
+      RCLCPP_INFO(walker->get_logger(), "Path blocked, continuing rotation");
+    }
   }
 }
 
-/**
- * @brief Handles behavior in the ForwardState.
- * If the path is clear, moves forward. Otherwise, toggles rotation direction
- * and transitions to RotationState.
- *
- * @param walker Pointer to the Walker instance.
- * @param scan Shared pointer to the LaserScan message.
- */
 void ForwardState::handle(Walker* walker,
-                          const sensor_msgs::msg::LaserScan::SharedPtr scan) {
+                        const sensor_msgs::msg::LaserScan::SharedPtr scan) {
   if (walker->is_path_clear(scan)) {
-    walker->publish_velocity(0.2, 0.0);
+    walker->publish_velocity(0.5, 0.0);
   } else {
+    // Toggle rotation direction before changing to rotation state
     walker->toggle_rotation_direction();
+    RCLCPP_INFO(walker->get_logger(), 
+                "Obstacle detected, changing rotation direction and starting rotation");
     walker->change_state(new RotationState());
   }
 }
