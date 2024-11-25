@@ -4,8 +4,8 @@
   <name>walker</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="sjd3333@umd.edu">sachin33sj</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="sjd3333@umd.edu">Sachin Jadhav</maintainer>
+  <license>Apache License 2.0</license>
   
   <buildtool_depend>ament_cmake</buildtool_depend>
 
